@@ -476,30 +476,56 @@ function initializeReportPage() {
     }
 }
 
-// AI 리포트 생성
+// AI 리포트 생성 - 실제 AI 기능 구현
 async function generateAIReport() {
     document.getElementById('report-loading').style.display = 'block';
     document.getElementById('report-content').style.display = 'none';
 
-    // AI 처리 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+        // 실제 AI로 디자인 시스템 생성
+        const data = await generateCompleteDesignSystemWithAI();
+        reportData = data;
 
-    const data = await generateCompleteDesignSystem();
-    reportData = data;
+        // 각 섹션 렌더링
+        renderFontPairing(data.fonts);
+        renderTypographyReport(data);
+        renderColorSystem(data.colors);
+        renderUniversalColorSystem(data);
+        renderComponents(data);
+        updateCodeOutput(data);
 
-    // 각 섹션 렌더링
-    renderFontPairing(data.fonts);
-    renderTypographyReport(data);
-    renderColorSystem(data.colors);
-    renderUniversalColorSystem(data); // NEW: 유니버설 컬러시스템 섹션
-    renderComponents(data);
+        document.getElementById('report-loading').style.display = 'none';
+        document.getElementById('report-content').style.display = 'block';
+    } catch (error) {
+        console.error('AI 리포트 생성 오류:', error);
+        document.getElementById('report-loading').innerHTML = `
+            <p style="color: #e53e3e;">AI 리포트 생성 중 오류가 발생했습니다.</p>
+            <p style="font-size: 14px; color: #666;">로컬 데이터로 대체하여 생성합니다...</p>
+        `;
+        
+        // Fallback: 로컬 데이터로 생성
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        const data = await generateCompleteDesignSystem();
+        reportData = data;
+        
+        renderFontPairing(data.fonts);
+        renderTypographyReport(data);
+        renderColorSystem(data.colors);
+        renderUniversalColorSystem(data);
+        renderComponents(data);
+        updateCodeOutput(data);
+
+        document.getElementById('report-loading').style.display = 'none';
+        document.getElementById('report-content').style.display = 'block';
+    }
+}
     updateCodeOutput(data);
 
     document.getElementById('report-loading').style.display = 'none';
     document.getElementById('report-content').style.display = 'block';
 }
 
-// 완전한 디자인 시스템 생성
+// 완전한 디자인 시스템 생성 (기존 로컬 버전 - Fallback용)
 async function generateCompleteDesignSystem() {
     const primary = appState.primaryColor || appState.labColors.bgColor;
     const secondary = getComplementaryColor(primary);
@@ -526,8 +552,91 @@ async function generateCompleteDesignSystem() {
     };
 }
 
-// 폰트 추천 로직 (한글 폰트 포함)
+// ============================================
+// 실제 AI 기능을 사용하는 디자인 시스템 생성
+// ============================================
+
+async function generateCompleteDesignSystemWithAI() {
+    const primary = appState.primaryColor || appState.labColors.bgColor;
+    const secondary = getComplementaryColor(primary);
+
+    // AI로 폰트 추천 받기 (OpenAI via Netlify Function)
+    const fonts = await getAIFontRecommendation(
+        appState.service, 
+        appState.keyword, 
+        appState.platform,
+        appState.mood
+    );
+    
+    // Google Fonts 동적 로드
+    await loadGoogleFonts([fonts.heading, fonts.body, fonts.korean]);
+
+    // 완전한 색상 팔레트 생성 (50-900)
+    const colors = {
+        primary: generateColorShades(primary),
+        secondary: generateColorShades(secondary)
+    };
+
+    return {
+        fonts,
+        colors,
+        service: appState.service,
+        platform: appState.platform,
+        keyword: appState.keyword,
+        labColors: appState.labColors
+    };
+}
+
+// AI 폰트 추천 함수 (OpenAI via Netlify Function)
+async function getAIFontRecommendation(service, keyword, platform, mood) {
+    try {
+        console.log('🤖 AI 폰트 추천 요청 중...');
+
+        // Netlify Function 호출
+        const response = await fetch('/.netlify/functions/get-font-recommendation', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                service,
+                keyword,
+                platform,
+                mood
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`API 호출 실패: ${response.status}`);
+        }
+
+        const fontsData = await response.json();
+        
+        console.log('✅ AI 폰트 추천 완료:', fontsData);
+        
+        return {
+            heading: fontsData.heading,
+            body: fontsData.body,
+            korean: fontsData.korean,
+            reasoning: fontsData.reasoning
+        };
+
+    } catch (error) {
+        console.error('❌ AI 폰트 추천 오류:', error);
+        console.log('🔄 로컬 Fallback 사용');
+        
+        // Fallback: 로컬 폰트 추천 사용
+        return getRecommendedFonts(service, keyword, mood);
+    }
+}
+
+// 완전한 디자인 시스템 생성 (기존 로컬 버전은 주석 처리하고 위로 이동)
+
+// ============================================
+// 폰트 추천 로직 (로컬 버전 - AI Fallback용)
+// ============================================
 function getRecommendedFonts(service, keyword, mood) {
+    // 이 함수는 AI가 실패했을 때 Fallback으로 사용됩니다
     const fontDatabase = {
         '포트폴리오': {
             heading: ['Playfair Display', 'Libre Baskerville', 'Cormorant Garamond'],
