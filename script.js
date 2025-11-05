@@ -92,7 +92,7 @@ function initializeMainPage() {
     initializeDropdowns();
     initializeSliders();
     document.getElementById('generate-btn').addEventListener('click', generateGuide);
-    updateAIMessage("안녕하세요! UNIVASSIST AI Design Assistant입니다. 어떤 프로젝트를 위한 디자인 가이드를 찾으시나요?");
+    updateAIMessage("안녕하세요! TYPOUNIVERSE AI Design Assistant입니다. 어떤 프로젝트를 위한 디자인 가이드를 찾으시나요?");
 }
 
 // 드롭다운 메뉴 초기화
@@ -476,7 +476,7 @@ function initializeReportPage() {
     }
 }
 
-// AI 리포트 생성 - 실제 AI 기능 구현
+// AI 리포트 생성
 async function generateAIReport() {
     document.getElementById('report-loading').style.display = 'block';
     document.getElementById('report-content').style.display = 'none';
@@ -498,10 +498,6 @@ async function generateAIReport() {
         document.getElementById('report-content').style.display = 'block';
     } catch (error) {
         console.error('AI 리포트 생성 오류:', error);
-        document.getElementById('report-loading').innerHTML = `
-            <p style="color: #e53e3e;">AI 리포트 생성 중 오류가 발생했습니다.</p>
-            <p style="font-size: 14px; color: #666;">로컬 데이터로 대체하여 생성합니다...</p>
-        `;
         
         // Fallback: 로컬 데이터로 생성
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -519,13 +515,8 @@ async function generateAIReport() {
         document.getElementById('report-content').style.display = 'block';
     }
 }
-    updateCodeOutput(data);
 
-    document.getElementById('report-loading').style.display = 'none';
-    document.getElementById('report-content').style.display = 'block';
-}
-
-// 완전한 디자인 시스템 생성 (기존 로컬 버전 - Fallback용)
+// 완전한 디자인 시스템 생성 (로컬 버전 - Fallback용)
 async function generateCompleteDesignSystem() {
     const primary = appState.primaryColor || appState.labColors.bgColor;
     const secondary = getComplementaryColor(primary);
@@ -552,18 +543,15 @@ async function generateCompleteDesignSystem() {
     };
 }
 
-// ============================================
-// 실제 AI 기능을 사용하는 디자인 시스템 생성
-// ============================================
-
+// 완전한 디자인 시스템 생성 (AI 버전)
 async function generateCompleteDesignSystemWithAI() {
     const primary = appState.primaryColor || appState.labColors.bgColor;
     const secondary = getComplementaryColor(primary);
 
-    // AI로 폰트 추천 받기 (OpenAI via Netlify Function)
+    // AI로 폰트 추천 받기
     const fonts = await getAIFontRecommendation(
-        appState.service, 
-        appState.keyword, 
+        appState.service,
+        appState.keyword,
         appState.platform,
         appState.mood
     );
@@ -592,7 +580,6 @@ async function getAIFontRecommendation(service, keyword, platform, mood) {
     try {
         console.log('🤖 AI 폰트 추천 요청 중...');
 
-        // Netlify Function 호출
         const response = await fetch('/.netlify/functions/get-font-recommendation', {
             method: 'POST',
             headers: {
@@ -611,7 +598,6 @@ async function getAIFontRecommendation(service, keyword, platform, mood) {
         }
 
         const fontsData = await response.json();
-        
         console.log('✅ AI 폰트 추천 완료:', fontsData);
         
         return {
@@ -624,19 +610,12 @@ async function getAIFontRecommendation(service, keyword, platform, mood) {
     } catch (error) {
         console.error('❌ AI 폰트 추천 오류:', error);
         console.log('🔄 로컬 Fallback 사용');
-        
-        // Fallback: 로컬 폰트 추천 사용
         return getRecommendedFonts(service, keyword, mood);
     }
 }
 
-// 완전한 디자인 시스템 생성 (기존 로컬 버전은 주석 처리하고 위로 이동)
-
-// ============================================
-// 폰트 추천 로직 (로컬 버전 - AI Fallback용)
-// ============================================
+// 폰트 추천 로직 (한글 폰트 포함)
 function getRecommendedFonts(service, keyword, mood) {
-    // 이 함수는 AI가 실패했을 때 Fallback으로 사용됩니다
     const fontDatabase = {
         '포트폴리오': {
             heading: ['Playfair Display', 'Libre Baskerville', 'Cormorant Garamond'],
@@ -1205,73 +1184,48 @@ async function downloadReportAsPNG() {
     const originalText = btn.textContent;
     
     try {
-        // 버튼 상태 변경
         btn.textContent = '⏳ 준비 중...';
         btn.disabled = true;
 
-        // 리포트 데이터 확인
         if (!reportData) {
-            alert('리포트 데이터가 없습니다.\n먼저 1번 탭에서 "AI 가이드 생성하기"를 실행하고,\n3번 탭 "AI 디자인 리포트"로 이동해주세요.');
+            alert('리포트 데이터가 없습니다.\n먼저 1번 탭에서 "AI 가이드 생성하기"를 실행해주세요.');
             btn.textContent = originalText;
             btn.disabled = false;
             return;
         }
 
-        // 리포트 컨텐츠 찾기
         const reportContent = document.getElementById('report-content');
         
-        if (!reportContent) {
-            alert('리포트 영역을 찾을 수 없습니다.');
-            btn.textContent = originalText;
-            btn.disabled = false;
-            return;
-        }
-
-        // 리포트가 표시되어 있는지 확인
-        const computedStyle = window.getComputedStyle(reportContent);
-        if (computedStyle.display === 'none') {
-            alert('리포트가 아직 생성되지 않았습니다.\n"AI 디자인 리포트" 탭으로 이동하면 자동으로 생성됩니다.');
+        if (!reportContent || reportContent.style.display === 'none') {
+            alert('리포트가 생성되지 않았습니다.\n"AI 디자인 리포트" 탭으로 이동해주세요.');
             btn.textContent = originalText;
             btn.disabled = false;
             return;
         }
 
         btn.textContent = '📸 캡처 중...';
-
-        // 약간의 대기 (렌더링 완료 대기)
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // html2canvas로 캡처
         const canvas = await html2canvas(reportContent, {
             scale: 2,
             useCORS: true,
             allowTaint: false,
             backgroundColor: '#ffffff',
-            logging: false,
-            imageTimeout: 0,
-            removeContainer: true
+            logging: false
         });
 
         btn.textContent = '💾 저장 중...';
 
-        // Canvas를 Blob으로 변환하고 다운로드
         canvas.toBlob(async (blob) => {
             if (!blob) {
                 throw new Error('이미지 생성 실패');
             }
 
-            // 현재 날짜
             const now = new Date();
             const dateStr = now.toISOString().split('T')[0];
-            const timeStr = now.toTimeString().split(' ')[0].replace(/:/g, '-');
-            
-            // 파일명
-            const filename = `UNIVASSIST_Design_Report_${dateStr}_${timeStr}.png`;
+            const filename = `UNIVASSIST_Design_Report_${dateStr}.png`;
 
-            // Blob URL 생성
             const url = URL.createObjectURL(blob);
-            
-            // 다운로드 링크 생성 및 클릭
             const link = document.createElement('a');
             link.href = url;
             link.download = filename;
@@ -1279,13 +1233,11 @@ async function downloadReportAsPNG() {
             document.body.appendChild(link);
             link.click();
             
-            // 정리
             setTimeout(() => {
                 document.body.removeChild(link);
                 URL.revokeObjectURL(url);
             }, 100);
 
-            // 성공 메시지
             btn.textContent = '✅ 다운로드 완료!';
             setTimeout(() => {
                 btn.textContent = originalText;
@@ -1296,7 +1248,7 @@ async function downloadReportAsPNG() {
 
     } catch (error) {
         console.error('PNG 다운로드 오류:', error);
-        alert('이미지 다운로드 중 오류가 발생했습니다.\n' + error.message);
+        alert('이미지 다운로드 중 오류가 발생했습니다.');
         btn.textContent = originalText;
         btn.disabled = false;
     }
